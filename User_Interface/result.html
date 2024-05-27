@@ -1,0 +1,425 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Predicting Air Quality</title>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="" name="keywords">
+    <meta content="" name="description">
+    
+    <!-- Favicon -->
+    <link href="img/favicon.ico" rel="icon">
+    
+    <!-- Google Web Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">  
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/3.5.0/css/flag-icon.min.css">
+    
+    
+    <!-- Icon Font Stylesheet -->
+    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{% static 'farmer/lib/animate/animate.min.css' %}" rel="stylesheet">
+    <link href="{% static 'farmer/lib/owlcarousel/assets/owl.carousel.min.css' %}" rel="stylesheet">
+    <link href="{% static 'farmer/css/bootstrap.min.css' %}" rel="stylesheet">
+    <link href="{% static 'farmer/css/style.css' %}" rel="stylesheet">
+    <style>
+        .navbar-nav a.nav-item.nav-link,
+        .navbar-nav .nav-item.dropdown a.nav-link.dropdown-toggle {
+            color: black !important;
+        }
+        .aqi-container {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px;
+            flex-wrap: wrap; /* Allows the cards to wrap in smaller screens */
+        }
+        
+        .aqi-card {
+            background-color: #FFF3CD; 
+            border-radius: 8px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); /* Increased depth */
+            overflow: hidden;
+            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out; /* Smooth transition for interaction */
+            width: 100%; /* Full width to better fit mobile and smaller screens */
+            max-width: 640px; /* Maximum width to maintain readability */
+            margin-bottom: 20px; /* Space between cards when wrapped */
+        }
+        
+        .aqi-card:hover {
+            transform: translateY(-5px); /* Slight lift effect on hover */
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3); /* Deeper shadow on hover for emphasis */
+        }
+        
+        .aqi-card-header {
+            background-color: #FFA726; 
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .aqi-location {
+            font-size: 1.75rem; /* A slightly larger size for the city name */
+            font-weight: bold; /* Bold weight for emphasis */
+            margin-bottom: 0.5rem; /* Space between city name and AQI value */
+            text-transform: uppercase; /* UPPERCASE text for a design touch */
+            letter-spacing: 1px; /* More spacing between letters for readability */
+        }
+        
+        .aqi-value {
+            font-size: 3rem; /* Larger font size for the AQI value to stand out */
+            font-weight: 600; /* Semi-bold weight for a balanced emphasis */
+            background-color: #ffd97d; /* A lighter shade for the background to stand out */
+            padding: 0.5rem 1rem; /* Padding inside the badge */
+            border-radius: 1rem; /* Rounded corners for the badge-like appearance */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Shadow for the value to pop out */
+        }
+        
+        .aqi-card-body {
+            padding: 20px;
+        }
+        
+        .aqi-card-body h3 {
+            font-size: 1.5rem;
+            margin: 10px 0;
+        }
+        
+        .aqi-stats {
+            display: flex;
+        }
+        
+        .aqi-stat {
+            margin-right: 15px;
+        }
+        
+        .stat-title {
+            font-weight: bold;
+        }
+        
+        .stat-value {
+            display: block;
+        }
+        
+        .aqi-health-message {
+            font-size: 1rem; /* Set a comfortable reading size */
+            line-height: 1.5; /* Provide optimal readability */
+            color: #333; /* Use a dark grey for the text color for contrast */
+            background: #f8f9fa; /* A light background to distinguish the message */
+            border-left: 5px solid; /* Add a left border for visual accent */
+            padding: 10px 15px; /* Padding for space within the message */
+            margin: 15px 0; /* Margin around the message for spacing */
+            border-radius: 3px; /* Slightly rounded corners for a softer look */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* A subtle shadow for depth */
+            display: inline-block; /* To wrap the content of the message */
+            max-width: 100%; /* Ensure it does not overflow its container */
+            word-wrap: break-word; /* Prevents long words from breaking the layout */
+        }
+        
+        .good .aqi-health-message {
+            background-color: #3afe68;
+            color: #155724;
+            border-color: #28a745;
+        }
+        
+        .fair .aqi-health-message {
+            background-color: #eeffcd;
+            color: #856404;
+            border-color: #ffc107;
+        }
+        
+        .moderate .aqi-health-message {
+            background-color: #daba59;
+            color: #856404;
+            border-color: #fd7e14;
+        }
+        
+        .poor .aqi-health-message {
+            background-color: #f5c6cb;
+            color: #721c24;
+            border-color: #dc3545;
+        }
+        
+        .very-poor .aqi-health-message {
+            background-color: #d6c3e8;
+            color: #38305c;
+            border-color: #6f42c1;
+        }
+        /* Use this if there's no specific category match */
+        .unknown .aqi-health-message {
+            border-color: #6c757d;
+        }
+        
+        /* Map Placeholder Styles */
+        #map-placeholder {
+            /* Existing styles */
+            height: 350px; /* Adjusted as needed */
+            background-color: #eee; /* Lighter shade for a more subtle appearance */
+            border-radius: 8px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15); /* More pronounced shadow for depth */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden; /* Ensures no overflow of content */
+            position: relative; /* Needed for positioning any absolute elements inside */
+            margin: 20px 0; /* Additional spacing around the placeholder */
+        }
+        
+        #map-placeholder::before {
+            content: 'Map Loading...'; /* Placeholder text */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #333;
+            font-size: 1.25rem;
+            font-weight: bold;
+        }
+        
+        #map-placeholder:hover {
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+        }
+        
+        #map-placeholder::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: url('path/to/your/loading-spinner.gif');
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        
+        .good .aqi-card-header {
+            background-color: #009966; /* Example color for 'Good' category */
+        }
+        
+        .fair .aqi-card-header {
+            background-color: #8bff33; /* Example color for 'Fair' category */
+        }
+        
+        .moderate .aqi-card-header {
+            background-color: #FF9933; /* Example color for 'Moderate' category */
+        }
+        
+        .poor .aqi-card-header {
+            background-color: #CC0033; /* Example color for 'Poor' category */
+        }
+        
+        .very-poor .aqi-card-header {
+            background-color: #050099; /* Example color for 'Very Poor' category */
+        }
+        .aqi-card-body h3 {
+            font-size: 2rem; /* Adjust the font size as needed */
+            font-weight: bold; /* Make the category name bold */
+            text-align: center; /* Center the text */
+            padding: 0.5rem 1rem; /* Padding for visual space around the text */
+            margin: 1rem 0; /* Margin for space above and below the h3 element */
+            display: inline-block; /* Make the h3 block level but line up with its content */
+            width: auto; /* Allow the width to fit the content */
+            border-radius: 10px; /* Rounded corners for a modern look */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for some depth */
+        }
+        
+        /* Specific styles for each AQI category */
+        .good h3 {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .fair h3 {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .moderate h3 {
+            background-color: #ffeeba;
+            color: #856404;
+        }
+        
+        .poor h3 {
+            background-color: #f5c6cb;
+            color: #721c24;
+        }
+        
+        .very-poor h3 {
+            background-color: #d6c3e8;
+            color: #38305c;
+        }
+        
+        .unknown h3 {
+            background-color: #e2e3e5;
+            color: #6c757d;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="container-xxl bg-white p-0">
+        <div id="spinner" class="show bg-white position-fixed translate-middle w-100 vh-100 top-50 start-50 d-flex align-items-center justify-content-center">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                <span class="sr-only">Loading...</span>
+            </div>
+        </div>
+        <div class="container-xxl position-relative p-0">
+            <nav class="navbar navbar-expand-lg navbar-light px-4 px-lg-5 py-3 py-lg-0">
+                <a href="" class="navbar-brand p-0">
+                    <h1 class="m-0 text-primary"><img src="{% static 'farmer/img/logo.png' %}" class="mx-3" alt="Climbot Logo">Air Quality Forecasting</h1>
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
+                    <span class="fa fa-bars"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarCollapse">
+                    <div class="navbar-nav ms-auto py-0">
+                        <a href="{% url 'userDashboard' %}" class="nav-item nav-link active ">Dashboard</a>
+                        <a href="{% url 'myprofile' %}" class="nav-item nav-link">My Profile</a>
+                    </div>
+                    <a href="{% url 'log_out' %}" class="btn btn-secondary py-2 px-4 ms-3">Log out</a>
+                </div>
+            </nav>
+            <div class="container-xxl py-5  hero-header mb-5">
+            </div>
+        </div>
+        {% if predicted_aqi %}
+        <!-- AQI Container -->
+        <div class="aqi-container row">
+            <!-- AQI Card -->
+            <div class="aqi-card col-md-7 {{ aqi_category|lower }}">
+                <div class="aqi-card-header ">
+                    <span class="aqi-location">{{ city_name }}<span style="font-size: 12px;">, {{country_name}}</span><i class="fas fa-map-marker-alt location-icon" style="font-size: 12px; text-shadow: 2px 0px 5px grey;"></i></span>
+                    <span class="aqi-value" data-aqi="{{ predicted_aqi }}">{{ predicted_aqi }}</span>
+                </div>
+                <div class="" style="font-size: 25px; font-weight: bold; text-align: center;">AQI on {{start_date_str1 }}</div>
+                <div class="aqi-card-body">
+                    <h3 class="{{ aqi_category|lower }}">Category: {{ aqi_category }}</h3>
+                    {% if aqi_category == 'Good' %}
+                    <p class="aqi-health-message">Air quality is considered satisfactory, and air pollution poses little or no risk.</p>
+                    {% elif aqi_category == 'Fair' %}
+                    <p class="aqi-health-message">Air quality is acceptable; however, there may be a moderate health concern for a very small number of people who are unusually sensitive to air pollution.</p>
+                    {% elif aqi_category == 'Moderate' %}
+                    <p class="aqi-health-message">Members of sensitive groups may experience health effects. The general public is not likely to be affected.</p>
+                    {% elif aqi_category == 'Poor' %}
+                    <p class="aqi-health-message">Everyone may begin to experience health effects; members of sensitive groups may experience more serious health effects.</p>
+                    {% elif aqi_category == 'Very Poor' %}
+                    <p class="aqi-health-message">Health warnings of emergency conditions. The entire population is more likely to be affected.</p>
+                    {% else %}
+                    <p class="aqi-health-message">Health information not available for this category.</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class='col-md-5 px-3'>
+                <div id="map-placeholder" >
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="container mt-5">
+            <div class="alert alert-warning text-center" role="alert">
+                <strong>Oops!</strong> We're unable to fetch the AQI data at the moment. Please try again later.
+            </div>
+        </div>
+        {% endif %}
+        
+        
+        
+        <script>
+            var map = L.map('map-placeholder').setView([{{ lat }}, {{ lon }}], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            var marker = L.marker([{{ lat }}, {{ lon }}]).addTo(map); 
+        </script>
+        
+        <div class="container-fluid bg-primary text-white footer mt-5 pt-5 wow fadeIn" data-wow-delay="0.1s">
+            <div class="container py-5 px-lg-5">
+                <div class="row gy-5 gx-4 pt-5">
+                    <div class="col-12">
+                        <h2 class="fw-bold text-white mb-4">Air Quality Forecasting</h2>
+                    </div>
+                    <div class="col-lg-6 col-md-12">
+                        <div class="row gy-5 g-4">
+                            <div class="col-md-6">
+                                <h5 class="fw-bold text-white mb-4">Shortcuts</h5>
+                                <a class="btn btn-link" href="{% url 'userDashboard' %}">Dashboard</a>
+                                <a class="btn btn-link" href="{% url 'myprofile' %}">My profile</a>
+                            </div>
+                            <div class="col-md-6">
+                                <h5 class="fw-bold text-white mb-4">Useful Links</h5>
+                                <a class="btn btn-link" href="{% url 'log_out' %}">Logout</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <h5 class="fw-bold text-white mb-4">Get In Touch</h5>
+                        <p class="mb-2"><i class="fa fa-map-marker-alt me-3"></i> #BVRIT HYDERABAD College of Engineering for Women - Nizampet Road, Opp:RAjiv Gandhi Nagar Bus Stop, Bachupally, Hyderabad - 500090</p>
+                        <p class="mb-2"><i class="fa fa-phone-alt me-3"></i> 91-40-42417773</p>
+                        <p class="mb-2"><i class="fa fa-envelope me-3"></i>info@bvrithyderabad.edu.in</p>
+                    </div>
+                    <div class="col-md-6 col-lg-3 mt-lg-n5">
+                        <div class="bg-light rounded" style="padding: 30px;">
+                            <img class="img-fluid animated zoomIn" src="{% static 'farmer/img/air3.avif' %}" alt="Climbot Hero Image">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <a href="#" class="btn btn-lg btn-secondary btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+    {% if messages %}              
+    {% for message in messages %}
+    {% if message.level == DEFAULT_MESSAGE_LEVELS.WARNING %}
+    <script>swal({
+        title: "Warning!",
+        text: "{{message}}",
+        icon: "warning",
+        button: "OK",
+    });
+</script>
+{% elif message.level == DEFAULT_MESSAGE_LEVELS.INFO %}
+<script>swal({
+    title: "Info :)",
+    text: "{{message}}",
+    icon: "info",
+    button: "OK",
+});
+</script>
+{% elif message.level == DEFAULT_MESSAGE_LEVELS.ERROR %}
+<script>swal({
+    title: "Error :)",
+    text: "{{message}}",
+    icon: "error",
+    button: "OK",
+});
+</script>
+{% elif message.level == DEFAULT_MESSAGE_LEVELS.SUCCESS %}
+<script>swal({
+    title: "Success :)",
+    text: "{{message}}",
+    icon: "success",
+    button: "OK",
+});
+</script>
+{% endif %}              
+{% endfor %} 
+{% endif %}
+<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{% static 'farmer/lib/wow/wow.min.js' %}"></script>
+<script src="{% static 'farmer/lib/easing/easing.min.js' %}"></script>
+<script src="{% static 'farmer/lib/waypoints/waypoints.min.js' %}"></script>
+<script src="{% static 'farmer/lib/counterup/counterup.min.js' %}"></script>
+<script src="{% static 'farmer/lib/owlcarousel/owl.carousel.min.js' %}"></script>
+<script src="{% static 'farmer/js/main.js' %}"></script>
+</body>
+</html>
